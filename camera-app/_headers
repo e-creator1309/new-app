@@ -1,0 +1,9 @@
+# GitHub Pages (via Cloudflare) cache-control overrides
+# Force the browser to always re-fetch the service worker file
+/sw.js
+  Cache-Control: no-store, no-cache, must-revalidate
+  Pragma: no-cache
+
+# Never cache the manifest either
+/manifest.json
+  Cache-Control: no-store

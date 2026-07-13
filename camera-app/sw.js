@@ -1,7 +1,7 @@
 // Camera PWA — Service Worker
 // Offline-first cache for the app shell. Photos never leave the device.
 
-const CACHE = 'camera-v2';
+const CACHE = 'camera-v3';
 const SHELL = [
   './',
   './index.html',
