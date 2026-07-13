@@ -1,327 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#000000" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Camera" />
-  <meta name="description" content="Simple, private camera app. No uploads, no tracking." />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <meta name="theme-color" content="#000000"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Camera"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
   <title>Camera</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      width: 100%; height: 100%;
-      background: #000;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent;
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{
+      width:100%;height:100%;
+      background:#000;overflow:hidden;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      user-select:none;-webkit-user-select:none;
+      -webkit-tap-highlight-color:transparent;
+      color:#fff;
     }
 
-    #app {
-      position: relative;
-      width: 100vw;
-      height: 100dvh;
-      overflow: hidden;
-      background: #000;
+    /* ── Layout shell ─────────────────────────────── */
+    #app{
+      position:relative;
+      width:100vw;height:100dvh;
+      display:flex;flex-direction:column;
+      overflow:hidden;background:#000;
     }
 
-    /* Viewfinder */
-    #viewfinder {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: #000;
+    /* ── Top bar ──────────────────────────────────── */
+    #topbar{
+      position:relative;z-index:20;
+      flex-shrink:0;
+      padding:max(12px,env(safe-area-inset-top)) 10px 10px;
+      display:flex;align-items:center;justify-content:space-between;
+      background:#000;
+    }
+    .top-icon{
+      width:38px;height:38px;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;touch-action:manipulation;
+      border-radius:50%;
+      transition:background .15s;
+      position:relative;
+    }
+    .top-icon:active{background:rgba(255,255,255,.1)}
+    .top-icon.active{color:#FFD700}
+    .top-badge{
+      font-size:12px;font-weight:600;color:#fff;
+      white-space:nowrap;cursor:pointer;
+      padding:4px 6px;border-radius:6px;
+      touch-action:manipulation;
+    }
+    .top-badge.live{color:#f55;}
+    /* red dot on resolution */
+    .res-dot{
+      position:absolute;top:6px;right:6px;
+      width:6px;height:6px;border-radius:50%;
+      background:#f33;
     }
 
-    /* Flash overlay */
-    #flash-overlay {
-      position: absolute;
-      inset: 0;
-      background: #fff;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 10;
-      transition: opacity 0.05s;
+    /* ── Viewfinder ───────────────────────────────── */
+    #vf-wrap{
+      position:relative;flex:1;overflow:hidden;
+      background:#000;
     }
-    #flash-overlay.active { opacity: 1; }
+    #viewfinder{
+      position:absolute;inset:0;
+      width:100%;height:100%;
+      object-fit:cover;background:#000;
+    }
+    #flash-overlay{
+      position:absolute;inset:0;
+      background:#fff;opacity:0;pointer-events:none;
+      z-index:5;transition:opacity .05s;
+    }
+    #flash-overlay.on{opacity:1}
 
-    /* Top bar */
-    #topbar {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      padding: max(16px, env(safe-area-inset-top)) 20px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%);
-      z-index: 20;
+    /* Zoom pills — overlaid on viewfinder */
+    #zoom-strip{
+      position:absolute;
+      bottom:12px;left:50%;transform:translateX(-50%);
+      display:flex;align-items:center;gap:6px;
+      z-index:10;
     }
+    .zpill{
+      padding:5px 10px;border-radius:20px;
+      font-size:13px;font-weight:600;
+      color:rgba(255,255,255,.65);
+      cursor:pointer;touch-action:manipulation;
+      transition:all .15s;
+      border:none;background:transparent;
+    }
+    .zpill.active{
+      background:rgba(0,0,0,.55);
+      color:#fff;
+      font-size:14px;
+    }
+    .zpill:active{opacity:.7}
 
-    /* Bottom controls */
-    #controls {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      padding: 24px 32px max(28px, env(safe-area-inset-bottom));
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%);
-      z-index: 20;
+    /* ── Mode tabs ────────────────────────────────── */
+    #mode-tabs{
+      flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      gap:28px;
+      padding:10px 0 8px;
+      background:#000;
+      z-index:20;position:relative;
     }
+    .mtab{
+      font-size:13px;font-weight:500;
+      color:rgba(255,255,255,.55);
+      cursor:pointer;touch-action:manipulation;
+      letter-spacing:.5px;
+      padding:2px 0;
+      border:none;background:none;color:rgba(255,255,255,.55);
+      transition:color .15s;
+    }
+    .mtab.active{
+      color:#fff;font-weight:700;font-size:14px;
+    }
+    .mtab:active{opacity:.7}
 
-    /* Generic icon button */
-    .icon-btn {
-      width: 50px; height: 50px;
-      border-radius: 50%;
-      border: none;
-      background: rgba(255,255,255,0.18);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      color: #fff;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s, transform 0.1s;
-      touch-action: manipulation;
+    /* ── Bottom controls ──────────────────────────── */
+    #controls{
+      flex-shrink:0;
+      padding:16px 28px max(20px,env(safe-area-inset-bottom));
+      display:flex;align-items:center;justify-content:space-between;
+      background:#000;
+      z-index:20;position:relative;
     }
-    .icon-btn:active { transform: scale(0.88); background: rgba(255,255,255,0.28); }
-    .icon-btn.active { background: rgba(255,214,0,0.38); }
-    .icon-btn:disabled { opacity: 0.3; pointer-events: none; }
-
-    /* Shutter button */
-    #shutter {
-      width: 78px; height: 78px;
-      border-radius: 50%;
-      border: 4px solid #fff;
-      background: rgba(255,255,255,0.88);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: transform 0.1s, background 0.1s;
-      touch-action: manipulation;
-      box-shadow: 0 0 0 3px rgba(255,255,255,0.25);
-    }
-    #shutter:active { transform: scale(0.87); background: #ccc; }
 
     /* Thumbnail */
-    #thumbnail {
-      width: 50px; height: 50px;
-      border-radius: 10px;
-      border: 2.5px solid rgba(255,255,255,0.65);
-      object-fit: cover;
-      background: rgba(255,255,255,0.08);
-      cursor: pointer;
-      display: none;
-      overflow: hidden;
-      touch-action: manipulation;
+    #thumbnail-wrap{
+      width:58px;height:58px;
+      border-radius:50%;overflow:hidden;
+      border:2px solid rgba(255,255,255,.5);
+      background:rgba(255,255,255,.08);
+      cursor:pointer;touch-action:manipulation;
+      transition:transform .1s;
+      flex-shrink:0;
     }
-    #thumbnail.visible { display: block; }
-    #thumbnail:active { opacity: 0.8; }
+    #thumbnail-wrap:active{transform:scale(.91)}
+    #thumbnail{
+      width:100%;height:100%;
+      object-fit:cover;
+      display:none;
+    }
+    #thumbnail.visible{display:block}
+    #thumb-placeholder{
+      width:100%;height:100%;
+      display:flex;align-items:center;justify-content:center;
+    }
+    #thumb-placeholder.hidden{display:none}
 
-    /* Torch states */
-    .torch-on { display: none; }
-    .icon-btn.active .torch-on { display: block; }
-    .icon-btn.active .torch-off { display: none; }
+    /* Shutter */
+    #shutter{
+      width:76px;height:76px;
+      border-radius:50%;
+      border:4px solid #fff;
+      background:#fff;
+      cursor:pointer;touch-action:manipulation;
+      transition:transform .1s,background .1s;
+      flex-shrink:0;
+    }
+    #shutter:active{transform:scale(.87);background:#ccc}
 
-    /* Zoom label */
-    #zoom-label {
-      position: absolute;
-      bottom: 118px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.55);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 4px 14px;
-      border-radius: 20px;
-      z-index: 20;
-      opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
-      white-space: nowrap;
+    /* Flip */
+    #flip-btn{
+      width:58px;height:58px;
+      border-radius:50%;
+      background:rgba(255,255,255,.12);
+      border:none;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;touch-action:manipulation;
+      transition:transform .1s,background .1s;
+      flex-shrink:0;
     }
-    #zoom-label.show { opacity: 1; }
+    #flip-btn:active{transform:scale(.88);background:rgba(255,255,255,.22)}
 
-    /* Toast notification */
-    #toast {
-      position: absolute;
-      top: max(72px, calc(env(safe-area-inset-top) + 56px));
-      left: 50%;
-      transform: translateX(-50%) translateY(-8px);
-      background: rgba(30,30,30,0.92);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 500;
-      padding: 10px 18px;
-      border-radius: 24px;
-      z-index: 30;
-      opacity: 0;
-      transition: opacity 0.25s, transform 0.25s;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-    #toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+    svg{display:block;pointer-events:none}
 
-    /* Permission screen */
-    #permission-screen {
-      position: absolute;
-      inset: 0;
-      background: #0a0a0a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 36px;
-      z-index: 100;
-      gap: 14px;
-      color: #fff;
+    /* ── Permission screen ────────────────────────── */
+    #permission-screen{
+      position:absolute;inset:0;
+      background:#0a0a0a;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      text-align:center;padding:36px;
+      z-index:200;gap:14px;
     }
-    #permission-screen.hidden { display: none; }
-    #permission-screen .perm-icon { font-size: 60px; }
-    #permission-screen h2 { font-size: 22px; font-weight: 700; }
-    #permission-screen p {
-      font-size: 14px;
-      color: rgba(255,255,255,0.55);
-      line-height: 1.6;
-      max-width: 280px;
+    #permission-screen.hidden{display:none}
+    .perm-icon{font-size:58px}
+    #permission-screen h2{font-size:22px;font-weight:700}
+    #permission-screen p{font-size:14px;color:rgba(255,255,255,.55);line-height:1.6;max-width:280px}
+    #perm-error{font-size:13px;color:#ff6b6b;display:none;max-width:280px;line-height:1.5}
+    #perm-error.visible{display:block}
+    #btn-request-cam{
+      margin-top:8px;padding:15px 36px;
+      border-radius:50px;border:none;
+      background:#fff;color:#000;
+      font-size:16px;font-weight:700;
+      cursor:pointer;touch-action:manipulation;
     }
-    #permission-screen .perm-error {
-      font-size: 13px;
-      color: #ff6b6b;
-      display: none;
-      max-width: 280px;
-      line-height: 1.5;
-    }
-    #permission-screen .perm-error.visible { display: block; }
-    #btn-request-cam {
-      margin-top: 8px;
-      padding: 15px 36px;
-      border-radius: 50px;
-      border: none;
-      background: #fff;
-      color: #000;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      touch-action: manipulation;
-      letter-spacing: 0.2px;
-    }
-    #btn-request-cam:active { opacity: 0.82; }
+    #btn-request-cam:active{opacity:.82}
 
-    /* Install banner */
-    #install-banner {
-      position: absolute;
-      bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px));
-      left: 16px; right: 16px;
-      background: rgba(20,20,20,0.92);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: #fff;
-      padding: 14px 16px;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      z-index: 40;
-      transform: translateY(20px);
-      opacity: 0;
-      transition: opacity 0.3s, transform 0.3s;
-      pointer-events: none;
+    /* ── Toast ────────────────────────────────────── */
+    #toast{
+      position:absolute;
+      top:max(70px,calc(env(safe-area-inset-top)+56px));
+      left:50%;transform:translateX(-50%) translateY(-6px);
+      background:rgba(20,20,20,.9);
+      backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+      color:#fff;font-size:13px;font-weight:500;
+      padding:9px 18px;border-radius:24px;
+      z-index:100;opacity:0;
+      transition:opacity .25s,transform .25s;
+      pointer-events:none;white-space:nowrap;
     }
-    #install-banner.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    #install-banner .install-icon { font-size: 26px; flex-shrink: 0; }
-    #install-banner .install-text { flex: 1; }
-    #install-banner .install-text strong { display: block; font-size: 14px; }
-    #install-banner .install-text span { font-size: 12px; color: rgba(255,255,255,0.55); }
-    #install-banner .install-actions { display: flex; gap: 8px; }
-    #install-banner button {
-      padding: 8px 16px; border-radius: 20px; border: none;
-      font-size: 13px; font-weight: 600; cursor: pointer; touch-action: manipulation;
-    }
-    #btn-install { background: #fff; color: #000; }
-    #btn-dismiss-install { background: rgba(255,255,255,0.15); color: #fff; }
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-    svg { display: block; pointer-events: none; }
+    /* ── Install banner ───────────────────────────── */
+    #install-banner{
+      position:absolute;
+      bottom:max(130px,calc(env(safe-area-inset-bottom)+130px));
+      left:16px;right:16px;
+      background:rgba(18,18,18,.93);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      padding:14px 16px;border-radius:16px;
+      display:flex;align-items:center;gap:12px;
+      z-index:50;
+      opacity:0;transform:translateY(14px);
+      transition:opacity .3s,transform .3s;
+      pointer-events:none;
+    }
+    #install-banner.show{opacity:1;transform:translateY(0);pointer-events:auto}
+    .install-text{flex:1}
+    .install-text strong{display:block;font-size:14px}
+    .install-text span{font-size:12px;color:rgba(255,255,255,.5)}
+    .install-actions{display:flex;gap:8px}
+    .install-actions button{
+      padding:8px 16px;border-radius:20px;border:none;
+      font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation;
+    }
+    #btn-install{background:#fff;color:#000}
+    #btn-dismiss-install{background:rgba(255,255,255,.15);color:#fff}
   </style>
 </head>
 <body>
 <div id="app">
 
-  <video id="viewfinder" autoplay playsinline muted></video>
-  <div id="flash-overlay"></div>
-
-  <!-- Permission screen — shown only on actual error -->
+  <!-- Permission screen -->
   <div id="permission-screen" class="hidden">
     <div class="perm-icon">📷</div>
     <h2>Allow Camera Access</h2>
-    <p>Tap below and allow camera when your browser asks. Photos stay on your device.</p>
-    <div class="perm-error" id="perm-error"></div>
+    <p>Tap below, then allow camera when your browser asks. Photos stay on your device.</p>
+    <div id="perm-error"></div>
     <button id="btn-request-cam">Open Camera</button>
   </div>
 
-  <!-- Top bar -->
+  <!-- ── Top bar ── -->
   <div id="topbar">
-    <button class="icon-btn" id="torch-btn" title="Torch">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <g class="torch-off">
-          <line x1="2" y1="2" x2="22" y2="22"/>
-          <path d="m10.071 10.071-5.657 5.657a2 2 0 0 0 0 2.828l2.829 2.829a2 2 0 0 0 2.828 0l5.657-5.657"/>
-          <path d="M13 5H9l-2 4h3"/>
-        </g>
-        <g class="torch-on">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-        </g>
+    <!-- Settings -->
+    <div class="top-icon" id="btn-settings" title="Settings">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
-    </button>
-    <span style="font-size:12px;color:rgba(255,255,255,0.65);font-weight:600;letter-spacing:1px;text-transform:uppercase;">Camera</span>
-    <!-- placeholder to keep spacing -->
-    <div style="width:50px;"></div>
+    </div>
+
+    <!-- Flash / Torch -->
+    <div class="top-icon" id="btn-torch" title="Flash">
+      <!-- off state -->
+      <svg id="torch-off-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="2" y1="2" x2="22" y2="22"/>
+        <path d="M10.584 10.587a2 2 0 0 0 2.828 2.83"/>
+        <path d="M13 5H9l-2 4h3v4"/>
+        <path d="m9 17 1 5 1-2 1 2 1-5"/>
+      </svg>
+      <!-- on state -->
+      <svg id="torch-on-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+
+    <!-- Timer -->
+    <div class="top-icon" id="btn-timer" title="Timer">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="13" r="8"/>
+        <path d="M12 9v4l2 2"/>
+        <path d="M9 2h6"/>
+        <path d="M12 2v3"/>
+      </svg>
+      <span id="timer-label" style="position:absolute;bottom:2px;right:2px;font-size:9px;font-weight:700;display:none"></span>
+    </div>
+
+    <!-- Aspect ratio -->
+    <div class="top-badge" id="btn-ratio">3:4</div>
+
+    <!-- Resolution with red dot -->
+    <div class="top-icon" style="position:relative;" title="Resolution">
+      <span class="top-badge">12M</span>
+      <span class="res-dot"></span>
+    </div>
+
+    <!-- Video shortcut -->
+    <div class="top-icon" id="btn-video-shortcut" title="Video">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+
+    <!-- Filters / layers -->
+    <div class="top-icon" title="Filters">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
   </div>
 
-  <!-- Zoom label -->
-  <div id="zoom-label">1.0×</div>
+  <!-- ── Viewfinder ── -->
+  <div id="vf-wrap">
+    <video id="viewfinder" autoplay playsinline muted></video>
+    <div id="flash-overlay"></div>
+
+    <!-- Zoom strip -->
+    <div id="zoom-strip">
+      <button class="zpill" data-zoom="0.5">.5</button>
+      <button class="zpill active" data-zoom="1">1×</button>
+      <button class="zpill" data-zoom="3">3</button>
+      <button class="zpill" data-zoom="5">5</button>
+    </div>
+  </div>
+
+  <!-- ── Mode tabs ── -->
+  <div id="mode-tabs">
+    <button class="mtab" data-mode="night">NIGHT</button>
+    <button class="mtab active" data-mode="photo">PHOTO</button>
+    <button class="mtab" data-mode="video">VIDEO</button>
+    <button class="mtab" data-mode="more">MORE</button>
+  </div>
+
+  <!-- ── Bottom controls ── -->
+  <div id="controls">
+    <!-- Thumbnail → opens Samsung Gallery -->
+    <div id="thumbnail-wrap" id="thumbnail-wrap" title="Open Gallery">
+      <img id="thumbnail" alt="Last photo"/>
+      <div id="thumb-placeholder">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="m21 15-5-5L5 21"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Shutter -->
+    <button id="shutter" aria-label="Take photo"></button>
+
+    <!-- Flip camera -->
+    <button id="flip-btn" title="Flip camera">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"/>
+        <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>
+      </svg>
+    </button>
+  </div>
 
   <!-- Toast -->
   <div id="toast"></div>
 
-  <!-- Bottom controls -->
-  <div id="controls">
-    <img id="thumbnail" alt="Last photo" />
-    <button id="shutter" aria-label="Take photo"></button>
-    <button class="icon-btn" id="flip-btn" title="Flip camera">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-        <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-        <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-        <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-        <path d="m8 8 4-4 4 4"/>
-        <path d="m16 16-4 4-4-4"/>
-      </svg>
-    </button>
-  </div>
-
   <!-- Install banner -->
   <div id="install-banner">
-    <div class="install-icon">📷</div>
+    <span style="font-size:26px">📷</span>
     <div class="install-text">
       <strong>Install Camera</strong>
-      <span>Add to home screen, works offline</span>
+      <span>Add to home screen — offline ready</span>
     </div>
     <div class="install-actions">
       <button id="btn-install">Install</button>
@@ -331,304 +389,330 @@
 
 </div>
 
-<canvas id="capture-canvas" style="display:none;"></canvas>
+<canvas id="capture-canvas" style="display:none"></canvas>
 
 <script>
-(function () {
-  'use strict';
+(function(){
+'use strict';
 
-  const video       = document.getElementById('viewfinder');
-  const canvas      = document.getElementById('capture-canvas');
-  const flashEl     = document.getElementById('flash-overlay');
-  const shutterBtn  = document.getElementById('shutter');
-  const flipBtn     = document.getElementById('flip-btn');
-  const torchBtn    = document.getElementById('torch-btn');
-  const thumbnail   = document.getElementById('thumbnail');
-  const permScreen  = document.getElementById('permission-screen');
-  const permError   = document.getElementById('perm-error');
-  const btnReqCam   = document.getElementById('btn-request-cam');
-  const installBanner = document.getElementById('install-banner');
-  const btnInstall  = document.getElementById('btn-install');
-  const btnDismiss  = document.getElementById('btn-dismiss-install');
-  const zoomLabel   = document.getElementById('zoom-label');
-  const toast       = document.getElementById('toast');
+/* ── Elements ─────────────────────────────────────────────────── */
+const video       = document.getElementById('viewfinder');
+const canvas      = document.getElementById('capture-canvas');
+const flashEl     = document.getElementById('flash-overlay');
+const shutterBtn  = document.getElementById('shutter');
+const flipBtn     = document.getElementById('flip-btn');
+const torchBtn    = document.getElementById('btn-torch');
+const torchOffIco = document.getElementById('torch-off-icon');
+const torchOnIco  = document.getElementById('torch-on-icon');
+const thumbWrap   = document.getElementById('thumbnail-wrap');
+const thumb       = document.getElementById('thumbnail');
+const thumbPH     = document.getElementById('thumb-placeholder');
+const permScreen  = document.getElementById('permission-screen');
+const permError   = document.getElementById('perm-error');
+const btnReqCam   = document.getElementById('btn-request-cam');
+const toast       = document.getElementById('toast');
+const installBanner = document.getElementById('install-banner');
+const btnInstall  = document.getElementById('btn-install');
+const btnDismiss  = document.getElementById('btn-dismiss-install');
+const zpills      = document.querySelectorAll('.zpill');
+const mtabs       = document.querySelectorAll('.mtab');
+const btnTimer    = document.getElementById('btn-timer');
+const timerLabel  = document.getElementById('timer-label');
 
-  let stream          = null;
-  let facingMode      = 'environment';
-  let torchOn         = false;
-  let torchSupported  = false;
-  let lastBlob        = null;
-  let lastBlobUrl     = null;
-  let deferredPrompt  = null;
-  let currentZoom     = 1;
-  let zoomTimer       = null;
-  let toastTimer      = null;
-  let pinchDist0      = 0;
-  let pinchZoom0      = 1;
+/* ── State ────────────────────────────────────────────────────── */
+let stream       = null;
+let facingMode   = 'environment';
+let torchOn      = false;
+let torchOK      = false;
+let lastBlob     = null;
+let lastUrl      = null;
+let deferred     = null;
+let currentZoom  = 1;
+let zoomTimer    = null;
+let toastTimer   = null;
+let pinchDist0   = 0;
+let pinchZoom0   = 1;
+let timerSecs    = 0; // 0 = off, 2, 5, 10
+let countdownId  = null;
 
-  // ── Service Worker ────────────────────────────────────────────────
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+/* ── Service Worker ───────────────────────────────────────────── */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+/* ── Toast ────────────────────────────────────────────────────── */
+function showToast(msg, ms=2400){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.remove('show'), ms);
+}
+
+/* ── PWA install ──────────────────────────────────────────────── */
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferred = e;
+  if(!window.matchMedia('(display-mode: standalone)').matches &&
+     !sessionStorage.getItem('install-dismissed')){
+    setTimeout(()=>installBanner.classList.add('show'), 3000);
   }
+});
+btnInstall.addEventListener('click', async()=>{
+  if(!deferred) return;
+  installBanner.classList.remove('show');
+  deferred.prompt();
+  await deferred.userChoice;
+  deferred = null;
+});
+btnDismiss.addEventListener('click',()=>{
+  installBanner.classList.remove('show');
+  sessionStorage.setItem('install-dismissed','1');
+});
 
-  // ── Toast helper ─────────────────────────────────────────────────
-  function showToast(msg, ms = 2800) {
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), ms);
+/* ── Camera ───────────────────────────────────────────────────── */
+async function startCamera(facing){
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{ facingMode:{ideal:facing}, width:{ideal:3840}, height:{ideal:2160} }
+    });
+  } catch(e1){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio:false, video:{facingMode:{ideal:facing}}
+      });
+    } catch(err){ handleErr(err); return; }
   }
+  video.srcObject = stream;
+  permScreen.classList.add('hidden');
+  video.play().catch(()=>{});
+  checkTorch();
+  currentZoom = 1;
+  setActiveZoom(1);
+}
 
-  // ── PWA install ───────────────────────────────────────────────────
-  window.addEventListener('beforeinstallprompt', e => {
+function handleErr(err){
+  stream = null;
+  permScreen.classList.remove('hidden');
+  const msgs = {
+    NotAllowedError:'Permission denied. Allow camera in browser settings and try again.',
+    PermissionDeniedError:'Permission denied. Allow camera in browser settings.',
+    NotFoundError:'No camera found on this device.',
+    NotReadableError:'Camera is in use by another app.',
+  };
+  permError.textContent = msgs[err.name] || `Camera error: ${err.message||err.name}`;
+  permError.classList.add('visible');
+}
+
+function checkTorch(){
+  const t = stream && stream.getVideoTracks()[0];
+  if(!t) return;
+  const caps = t.getCapabilities ? t.getCapabilities() : {};
+  torchOK = !!caps.torch;
+  torchBtn.style.opacity = torchOK ? '1' : '0.35';
+  torchBtn.style.pointerEvents = torchOK ? 'auto' : 'none';
+  torchOn = false;
+  torchOffIco.style.display = 'block';
+  torchOnIco.style.display  = 'none';
+  torchBtn.classList.remove('active');
+}
+
+async function toggleTorch(){
+  if(!torchOK || !stream) return;
+  const t = stream.getVideoTracks()[0];
+  if(!t) return;
+  try{
+    torchOn = !torchOn;
+    await t.applyConstraints({advanced:[{torch:torchOn}]});
+    torchOffIco.style.display = torchOn ? 'none'  : 'block';
+    torchOnIco.style.display  = torchOn ? 'block' : 'none';
+    torchBtn.classList.toggle('active', torchOn);
+  } catch{ torchOn = !torchOn; }
+}
+
+/* ── Zoom ─────────────────────────────────────────────────────── */
+function setActiveZoom(z){
+  zpills.forEach(p=>{
+    const pz = parseFloat(p.dataset.zoom);
+    p.classList.toggle('active', Math.abs(pz-z)<0.05);
+    p.textContent = (Math.abs(pz-z)<0.05) ? z.toFixed(1)+'×' : p.dataset.zoom==='0.5'?'.5':p.dataset.zoom;
+  });
+}
+
+function applyZoom(z){
+  const t = stream && stream.getVideoTracks()[0];
+  if(!t) return;
+  const caps = t.getCapabilities ? t.getCapabilities() : {};
+  if(!caps.zoom) return;
+  z = Math.max(caps.zoom.min??1, Math.min(caps.zoom.max??z, z));
+  t.applyConstraints({advanced:[{zoom:z}]}).catch(()=>{});
+  currentZoom = z;
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(()=>{}, 0);
+}
+
+zpills.forEach(p=>{
+  p.addEventListener('click',()=>{
+    const z = parseFloat(p.dataset.zoom);
+    setActiveZoom(z);
+    applyZoom(z);
+  });
+});
+
+/* pinch-to-zoom */
+video.addEventListener('touchstart', e=>{
+  if(e.touches.length===2){
     e.preventDefault();
-    deferredPrompt = e;
-    if (!window.matchMedia('(display-mode: standalone)').matches &&
-        !sessionStorage.getItem('install-dismissed')) {
-      setTimeout(() => installBanner.classList.add('show'), 3000);
-    }
-  });
-  btnInstall.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    installBanner.classList.remove('show');
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-  });
-  btnDismiss.addEventListener('click', () => {
-    installBanner.classList.remove('show');
-    sessionStorage.setItem('install-dismissed', '1');
-  });
-
-  // ── Camera ────────────────────────────────────────────────────────
-  async function startCamera(facing) {
-    // Stop previous stream
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-
-    // Try high-res first, fall back to default
-    const constraints = {
-      audio: false,
-      video: {
-        facingMode: { ideal: facing },
-        width:  { ideal: 3840 },
-        height: { ideal: 2160 },
-      }
-    };
-
-    try {
-      stream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (highResErr) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: { ideal: facing } }
-        });
-      } catch (err) {
-        handleCamError(err);
-        return;
-      }
-    }
-
-    video.srcObject = stream;
-    permScreen.classList.add('hidden');
-
-    // video.play() can throw AbortError on quick flips — ignore
-    video.play().catch(() => {});
-
-    checkTorchSupport();
-    currentZoom = 1;
-    zoomLabel.textContent = '1.0×';
+    pinchDist0 = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    pinchZoom0 = currentZoom;
   }
-
-  function handleCamError(err) {
-    stream = null;
-    permScreen.classList.remove('hidden');
-    let msg = '';
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      msg = 'Camera permission denied. Please allow camera access in your browser settings and try again.';
-    } else if (err.name === 'NotFoundError') {
-      msg = 'No camera found on this device.';
-    } else if (err.name === 'NotReadableError') {
-      msg = 'Camera is in use by another app. Close it and try again.';
-    } else {
-      msg = `Camera error: ${err.message || err.name}`;
-    }
-    permError.textContent = msg;
-    permError.classList.add('visible');
-  }
-
-  function checkTorchSupport() {
-    const track = stream && stream.getVideoTracks()[0];
-    if (!track) return;
-    const caps = track.getCapabilities ? track.getCapabilities() : {};
-    torchSupported = !!caps.torch;
-    torchBtn.disabled = !torchSupported;
-    torchOn = false;
-    torchBtn.classList.remove('active');
-  }
-
-  async function toggleTorch() {
-    if (!torchSupported || !stream) return;
-    const track = stream.getVideoTracks()[0];
-    if (!track) return;
-    try {
-      torchOn = !torchOn;
-      await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-      torchBtn.classList.toggle('active', torchOn);
-    } catch {
-      torchOn = !torchOn;
-    }
-  }
-
-  // ── Capture & Save to Gallery ─────────────────────────────────────
-  //
-  // Strategy: use Web Share API with a File object.
-  // On Android this opens the native share sheet → user picks
-  // "Save to gallery" / Samsung Gallery / Google Photos.
-  // Falls back to <a download> if Web Share isn't available.
-
-  function capturePhoto() {
-    if (!stream) return;
-
-    const w = video.videoWidth || 1280;
-    const h = video.videoHeight || 720;
-    canvas.width  = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-
-    // Mirror front camera
-    if (facingMode === 'user') {
-      ctx.translate(w, 0);
-      ctx.scale(-1, 1);
-    }
-    ctx.drawImage(video, 0, 0, w, h);
-
-    // Flash effect
-    flashEl.classList.add('active');
-    setTimeout(() => flashEl.classList.remove('active'), 80);
-
-    canvas.toBlob(async blob => {
-      if (!blob) return;
-
-      // Revoke previous blob URL
-      if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
-      lastBlob = blob;
-      lastBlobUrl = URL.createObjectURL(blob);
-
-      // Update thumbnail
-      thumbnail.src = lastBlobUrl;
-      thumbnail.classList.add('visible');
-
-      await saveToGallery(blob);
-    }, 'image/jpeg', 0.95);
-  }
-
-  async function saveToGallery(blob) {
-    const filename = `IMG_${Date.now()}.jpg`;
-    const file = new File([blob], filename, { type: 'image/jpeg' });
-
-    // 1. Try Web Share API → opens Android share sheet → gallery
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: 'Photo' });
-        return; // user handled it
-      } catch (err) {
-        // User cancelled share — that's fine, don't fall through to download
-        if (err.name === 'AbortError') return;
-        // Otherwise fall through to download
-      }
-    }
-
-    // 2. Fallback: <a download> (goes to Downloads; user can move to gallery)
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    showToast('📥 Saved to Downloads');
-  }
-
-  // Thumbnail tap → re-share last photo
-  thumbnail.addEventListener('click', () => {
-    if (lastBlob) saveToGallery(lastBlob);
-  });
-
-  // ── Zoom ─────────────────────────────────────────────────────────
-  function applyZoom(z) {
-    const track = stream && stream.getVideoTracks()[0];
-    if (!track) return;
-    const caps = track.getCapabilities ? track.getCapabilities() : {};
-    if (!caps.zoom) return;
-    z = Math.max(caps.zoom.min ?? 1, Math.min(caps.zoom.max ?? z, z));
-    track.applyConstraints({ advanced: [{ zoom: z }] }).catch(() => {});
-    currentZoom = z;
-    zoomLabel.textContent = z.toFixed(1) + '×';
-    zoomLabel.classList.add('show');
-    clearTimeout(zoomTimer);
-    zoomTimer = setTimeout(() => zoomLabel.classList.remove('show'), 1600);
-  }
-
-  // Pinch-to-zoom
-  video.addEventListener('touchstart', e => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      pinchDist0 = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      pinchZoom0 = currentZoom;
-    }
-  }, { passive: false });
-
-  video.addEventListener('touchmove', e => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      const d = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      applyZoom(pinchZoom0 * (d / pinchDist0));
-    }
-  }, { passive: false });
-
-  video.addEventListener('wheel', e => {
+},{passive:false});
+video.addEventListener('touchmove', e=>{
+  if(e.touches.length===2){
     e.preventDefault();
-    applyZoom(currentZoom + (e.deltaY < 0 ? 0.1 : -0.1));
-  }, { passive: false });
-
-  // ── Events ───────────────────────────────────────────────────────
-  btnReqCam.addEventListener('click',   () => startCamera(facingMode));
-  shutterBtn.addEventListener('click',  capturePhoto);
-  torchBtn.addEventListener('click',    toggleTorch);
-  flipBtn.addEventListener('click', () => {
-    facingMode = facingMode === 'environment' ? 'user' : 'environment';
-    startCamera(facingMode);
-  });
-
-  // Hardware volume buttons as shutter (works in some Android browsers)
-  document.addEventListener('keydown', e => {
-    if (['Enter', ' ', 'VolumeUp', 'VolumeDown'].includes(e.key) ||
-        ['VolumeUp', 'VolumeDown'].includes(e.code)) {
-      e.preventDefault();
-      capturePhoto();
-    }
-  });
-
-  // ── Wake lock ─────────────────────────────────────────────────────
-  let wakeLock = null;
-  async function grabWakeLock() {
-    if (!('wakeLock' in navigator)) return;
-    try { wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+    const d = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    const z = pinchZoom0 * (d/pinchDist0);
+    applyZoom(z);
+    setActiveZoom(z);
   }
-  grabWakeLock();
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') grabWakeLock();
-  });
+},{passive:false});
+video.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const z = currentZoom + (e.deltaY<0 ? 0.1 : -0.1);
+  applyZoom(z); setActiveZoom(z);
+},{passive:false});
 
-  // ── Init — start camera immediately, no permissions.query gate ────
+/* ── Timer ────────────────────────────────────────────────────── */
+const timerCycle = [0, 2, 5, 10];
+btnTimer.addEventListener('click',()=>{
+  const idx = timerCycle.indexOf(timerSecs);
+  timerSecs = timerCycle[(idx+1) % timerCycle.length];
+  if(timerSecs===0){
+    timerLabel.style.display='none';
+    btnTimer.classList.remove('active');
+  } else {
+    timerLabel.textContent = timerSecs+'s';
+    timerLabel.style.display='block';
+    btnTimer.classList.add('active');
+  }
+});
+
+/* ── Capture ──────────────────────────────────────────────────── */
+function doCapture(){
+  if(!stream) return;
+  const w = video.videoWidth  || 1280;
+  const h = video.videoHeight || 720;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if(facingMode==='user'){ ctx.translate(w,0); ctx.scale(-1,1); }
+  ctx.drawImage(video, 0, 0, w, h);
+
+  flashEl.classList.add('on');
+  setTimeout(()=>flashEl.classList.remove('on'), 90);
+
+  canvas.toBlob(blob=>{
+    if(!blob) return;
+    if(lastUrl) URL.revokeObjectURL(lastUrl);
+    lastBlob = blob;
+    lastUrl  = URL.createObjectURL(blob);
+    thumb.src = lastUrl;
+    thumb.classList.add('visible');
+    thumbPH.classList.add('hidden');
+    savePhoto(blob);
+  },'image/jpeg', 0.95);
+}
+
+function startShutter(){
+  if(timerSecs===0){ doCapture(); return; }
+  let remaining = timerSecs;
+  showToast(`📷 ${remaining}…`, timerSecs*1000+500);
+  clearInterval(countdownId);
+  countdownId = setInterval(()=>{
+    remaining--;
+    if(remaining<=0){ clearInterval(countdownId); doCapture(); }
+    else { showToast(`📷 ${remaining}…`, 1200); }
+  },1000);
+}
+
+/* ── Save directly to device (no share sheet) ─────────────────
+   Chrome for Android saves <a download> files to the Downloads
+   folder, which Samsung Gallery (com.sec.android.gallery3d)
+   scans and shows automatically in "Albums → Downloads".
+   No user interaction needed — photo lands in the gallery.   */
+function savePhoto(blob){
+  const fname = `IMG_${Date.now()}.jpg`;
+  const url   = URL.createObjectURL(blob);
+  const a     = document.createElement('a');
+  a.href     = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Don't revoke immediately — browser needs the URL
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+}
+
+/* ── Thumbnail: open Samsung Gallery ─────────────────────────── */
+thumbWrap.addEventListener('click',()=>{
+  // Android intent URL — opens Samsung Gallery directly
+  // Falls back to photos picker on non-Samsung or desktop
+  const intent = 'intent:#Intent;' +
+    'action=android.intent.action.MAIN;' +
+    'category=android.intent.category.LAUNCHER;' +
+    'package=com.sec.android.gallery3d;' +
+    'end';
+  // Try intent first; if on desktop it'll silently fail,
+  // so fall back to the native media picker
+  const a = document.createElement('a');
+  a.href = intent;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+/* ── Mode tabs (cosmetic) ─────────────────────────────────────── */
+mtabs.forEach(t=>{
+  t.addEventListener('click',()=>{
+    mtabs.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+  });
+});
+
+/* ── Hardware buttons ─────────────────────────────────────────── */
+document.addEventListener('keydown', e=>{
+  if(['Enter',' ','VolumeUp','VolumeDown'].includes(e.key)||
+     ['VolumeUp','VolumeDown'].includes(e.code)){
+    e.preventDefault(); startShutter();
+  }
+});
+
+/* ── Events ───────────────────────────────────────────────────── */
+btnReqCam.addEventListener('click',  ()=>startCamera(facingMode));
+shutterBtn.addEventListener('click',  startShutter);
+torchBtn.addEventListener('click',    toggleTorch);
+flipBtn.addEventListener('click',()=>{
+  facingMode = facingMode==='environment' ? 'user' : 'environment';
   startCamera(facingMode);
+});
+
+/* ── Wake lock ────────────────────────────────────────────────── */
+async function grabWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  try{ await navigator.wakeLock.request('screen'); } catch{}
+}
+grabWakeLock();
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible') grabWakeLock();
+});
+
+/* ── Start immediately — no permissions.query gate ────────────── */
+startCamera(facingMode);
 
 })();
 </script>
