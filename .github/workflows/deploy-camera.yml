@@ -1,0 +1,28 @@
+name: Deploy Camera PWA to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add .nojekyll
+        run: touch camera-app/.nojekyll
+
+      - name: Copy 404 fallback
+        run: cp camera-app/index.html camera-app/404.html
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./camera-app
+          force_orphan: true
