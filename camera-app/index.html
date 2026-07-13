@@ -190,14 +190,21 @@ html,body{
   display:flex;align-items:center;justify-content:center;
 }
 #shutter:active{transform:scale(.87);background:#ccc}
-#shutter.recording{background:transparent;border-color:#f33}
-#shutter.recording #shutter-dot{background:#f33}
+/* video idle: red ring, white inside */
+#shutter.video-mode{border-color:#f33;background:#fff}
+#shutter.video-mode #shutter-dot{width:28px;height:28px;border-radius:50%;background:#f33}
+/* actively recording: red ring, square stop icon */
+#shutter.is-recording{border-color:#f33;background:#fff}
+#shutter.is-recording #shutter-dot{background:#f33;border-radius:5px;width:26px;height:26px}
 #shutter-dot{
-  width:26px;height:26px;border-radius:50%;background:transparent;
+  width:0;height:0;border-radius:50%;background:transparent;
   transition:background .15s,border-radius .2s,width .2s,height .2s;
 }
-#shutter.recording #shutter-dot{
-  border-radius:6px;width:24px;height:24px;
+/* keep :active from conflicting */
+#shutter.video-mode:active,#shutter.is-recording:active{background:#eee;transform:scale(.87);}
+#shutter.video-mode:active #shutter-dot,#shutter.is-recording:active #shutter-dot{opacity:.8}
+/* legacy .recording kept for compatibility - remove if not used */
+#shutter.recording{border-color:#f33}
 }
 /* flip */
 #flip-btn{
@@ -328,7 +335,7 @@ svg{display:block;pointer-events:none}
 <div id="app">
 
 <!-- permission -->
-<div id="perm-screen" class="hidden">
+<div id="perm-screen">
   <div style="font-size:58px">📷</div>
   <h2>Allow Camera Access</h2>
   <p>Tap below and allow when your browser asks. Photos stay only on your device.</p>
@@ -956,7 +963,8 @@ btnFilters.addEventListener('click',()=>{
 filterPills.forEach(p=>{
   p.addEventListener('click',()=>{
     currentFilter = p.dataset.filter;
-    video.style.filter = currentFilter==='none' ? '' : currentFilter;
+    // go through syncNightFilter so night mode isn't clobbered
+    syncNightFilter();
     filterPills.forEach(x=>x.classList.remove('active'));
     p.classList.add('active');
     showToast(p.querySelector('.fpill-label').textContent);
@@ -973,17 +981,17 @@ btnVidShort.addEventListener('click',()=>{
 /* ── MODE TABS ───────────────────────────────────────── */
 function switchMode(mode){
   currentMode = mode;
-  if(mode==='night'){ syncNightFilter(); }
-  else { if(currentFilter==='none') video.style.filter=''; }
+  // fix: call syncNightFilter only once
   syncNightFilter();
-  // video mode: change shutter appearance
+  // video mode: show red-ring idle shutter
   if(mode==='video'){
-    shutterBtn.classList.add('recording'); // shows red ring
+    shutterBtn.classList.add('video-mode');
+    shutterBtn.classList.remove('is-recording');
     shutterBtn.setAttribute('aria-label','Record video');
-    showToast('VIDEO mode — tap shutter to record');
+    showToast('VIDEO — tap to record, tap again to stop');
   } else {
     if(mediaRecorder && mediaRecorder.state==='recording') stopRecording();
-    shutterBtn.classList.remove('recording');
+    shutterBtn.classList.remove('video-mode','is-recording');
     shutterBtn.setAttribute('aria-label','Take photo');
   }
 }
@@ -991,7 +999,6 @@ function switchMode(mode){
 function syncNightFilter(){
   if(currentMode==='night'){
     video.style.filter = 'brightness(1.4) contrast(1.1)' + (currentFilter!=='none'?' '+currentFilter:'');
-    showToast('Night mode: boost on');
   } else {
     video.style.filter = currentFilter==='none' ? '' : currentFilter;
   }
@@ -1031,10 +1038,9 @@ function startRecording(){
     const m=Math.floor(recSeconds/60), s=recSeconds%60;
     recLabel.textContent=`${m}:${String(s).padStart(2,'0')}`;
   },1000);
-  shutterBtn.style.background='transparent';
-  shutterBtn.style.borderColor='#f33';
-  shutterDot.style.background='#f33';
-  shutterDot.style.borderRadius='6px';
+  // use CSS class, not inline styles
+  shutterBtn.classList.add('is-recording');
+  shutterBtn.classList.remove('video-mode');
   showToast('Recording…');
 }
 
@@ -1043,10 +1049,9 @@ function stopRecording(){
   mediaRecorder.stop();
   clearInterval(recInterval);
   recTimer.classList.remove('show');
-  shutterBtn.style.background='#fff';
-  shutterBtn.style.borderColor='#fff';
-  shutterDot.style.background='transparent';
-  shutterDot.style.borderRadius='50%';
+  // back to video-idle state (red ring, not square)
+  shutterBtn.classList.remove('is-recording');
+  shutterBtn.classList.add('video-mode');
 }
 
 /* ── CAPTURE PHOTO ───────────────────────────────────── */
